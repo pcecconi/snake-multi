@@ -15,8 +15,8 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "io.grpc.examples.routeguide";
-option java_outer_classname = "RouteGuideProto";
+option java_package = "com.github.pcecconi.snake-multi";
+option java_outer_classname = "SnakeProto";
 option go_package = ".;snake";
 
 package snake;
@@ -31,18 +31,26 @@ service Snake {
   // the other player's info
   rpc GetGameRoom(PlayRequest) returns (GameSetup) {}
 
+  // Signals the server that play started for 
+  // this player
+  rpc StartGame(ActionRequest) returns (ActionAck) {}
+
+  // Signals the server that this player wants to 
+  // abort the game
+  rpc AbortGame(ActionRequest) returns (GameUpdate) {}
+
   // A server-to-client streaming RPC.
   //
   // Obtains the updated position of the other player's snake, points
   // and bait position. Stream ends when there's a winner.
-  rpc GetGameUpdates(UpdateRequest) returns (stream GameUpdate) {}
+  rpc GetGameUpdates(ActionRequest) returns (stream GameUpdate) {}
 
-  // A client-to-server streaming RPC.
+  // Client-to-server streaming RPC is not supported for web 
+  // so we make a simple RPC request for every move or 
+  // position update.
   //
-  // Sends my snake movements to the server. When I stop
-  // sending movements I get a summary of the game.
-  rpc Play(stream Move) returns (GameSummary) {}
-
+  // Sends my snake movement to the server. 
+  rpc SendMove(MoveRequest) returns (ActionAck) {}
 }
 
 // Points are represent positions on the board.
@@ -51,48 +59,54 @@ message Point {
     int32 y = 2;
 }
 
+enum Direction {
+    LEFT = 0;
+    RIGHT = 1;
+    UP = 2;
+    DOWN = 3;
+}
+
 message Move {
-    enum Direction {
-        LEFT = 0;
-        RIGHT = 1;
-        UP = 2;
-        DOWN = 3;
-    }
     int32 id = 1;
     Direction dir = 2;
     Point posAtMove = 3;
 }
 
+message MoveRequest {
+    string roomId = 1;
+    string playerId = 2;
+    Direction dir = 3;
+    repeated Point snake = 4;
+}
+
 message PlayRequest {
-    string playerId = 1;
-    string playerName = 2;
+    string playerName = 1;
+}
+
+message ActionRequest {
+    string roomId = 1;
+    string playerId = 2;
 }
 
 message GameSetup {
     string roomId = 1;
     int32 boardWidth = 2;
     int32 boardHeight = 3;
-    // string player2Id = 4;
-    // string player2Name = 5;
-    // Point player1Head = 6;
-    // Point player2Head = 7;
-    // Point bait = 8;
-}
-
-message UpdateRequest {
-    string roomId = 1;
+    string playerId = 4;
+    string player2Name = 5;
+    repeated Point snake1 = 6;
+    repeated Point snake2 = 7;
+    Point bait = 8;
 }
 
 message GameUpdate {
     int32 player1Points = 1;
     int32 player2Points = 2;
     Point bait = 3;
-    Move player2LastMove = 4;
+    repeated Point snake2 = 4;
+    bool gameEnded = 5;
 }
 
-message GameSummary {
-    int32 player1Points = 1;
-    int32 player2Points = 2;
-    bool gameEnded = 3;
-    int32 elapsed_time = 4;
+message ActionAck {
+    int32 actionId = 1;
 }
