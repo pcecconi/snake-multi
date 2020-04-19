@@ -1,0 +1,182 @@
+body {
+    font-family: 'Exo 2', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+.toolbar {
+  background: #444;
+  color: white;
+  display: flex;
+  flex-direction: row;
+  height: 40px;
+  padding: 8px 15px 15px;
+}
+.toolbar .brand {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  padding: 0;
+  margin-left: 10px;
+  align-self: center;
+  margin-right: auto;
+}
+.toolbar .scores {
+  width: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-right: 30px;
+}
+.player-score {
+  display: flex;
+  align-items: center;
+}
+.player-score+.player-score {
+  margin-left: 20px;
+}
+.player-score .player-ref {
+    display: flex;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    margin-top: 4px;
+    border: 1px solid;
+}
+.player-score .player-ref.player1 {
+    background-color: green;
+    border-color: darkgreen;
+}
+.player-score .player-ref.player2 {
+    background-color: red;
+    border-color: darkred;
+}
+.player-score .label {
+  margin-right: 10px;
+}
+#root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+.main-container, .loader {
+  display: flex;
+  padding: auto;
+  justify-content: center;
+  align-items: center;
+  height: auto;
+  flex-grow: 1;
+  font-size: 18px;
+  background-color: #eee;
+}
+.loader {
+    margin-left: -80px;
+}
+.game-setting {
+  display: flex;
+  margin: auto;
+  width: 300px;
+  height: auto;
+  background: white;
+  margin-top: 20vh;
+  border: 1px solid #ccc;
+  padding: 30px 40px;
+  align-content: center;
+  flex-direction: column;
+  -webkit-box-shadow: 6px 5px 5px 0px rgba(0,0,0,0.29);
+  -moz-box-shadow: 6px 5px 5px 0px rgba(0,0,0,0.29);
+  box-shadow: 6px 5px 5px 0px rgba(0,0,0,0.29);
+}
+.game-setting .setting-group {
+  display: flex;
+  flex-direction: column;
+}
+.game-setting label {
+  display: block;
+}
+.game-setting input[type=text] {
+  margin: 10px 0 20px;
+  width: auto;
+  padding: 6px;
+  font-size: 16px;
+}
+.game-setting button {
+  background-color: #444; /* Green */
+  border: none;
+  color: white;
+  padding: 12px 30px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  align-self: flex-end;
+}
+.hidden {
+  display: none!important;
+}
+
+.game-area {
+    border: 1px solid rgba(0, 0, 0, .1);;
+}
+.game-area > .row {
+    overflow: hidden;
+}
+.game-area > .row > .cell {
+    border: 1px solid rgba(0, 0, 0, .1);
+    width: 7px;
+    height: 7px;
+    display: block;
+    float: left;
+    background-color: white;
+}
+.game-area > .row > .cell.black {
+    background-color: black;
+    border-color: black;
+}
+.game-area > .row > .cell.bait {
+    background-color: darkmagenta;
+    border-color: magenta;
+}
+
+.game-area > .row > .cell.player1 {
+    background-color: green;
+    border-color: darkgreen;
+}
+.game-area > .row > .cell.player2 {
+    background-color: red;
+    border-color: darkred;
+}
+.centered {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, .1);
+}
+.game-over {
+    display: flex;
+    margin: auto;
+    width: 300px;
+    height: auto;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 30px 40px;
+    align-content: center;
+    flex-direction: column;
+    -webkit-box-shadow: 6px 5px 5px 0px rgba(0,0,0,0.29);
+    -moz-box-shadow: 6px 5px 5px 0px rgba(0,0,0,0.29);
+    box-shadow: 6px 5px 5px 0px rgba(0,0,0,0.29);     
+}
+.game-over h3 {
+    margin-top: 0;
+}
+.game-over .player-score+.player-score {
+    margin-left: 0;
+    margin-top: 10px;
+}

@@ -7,7 +7,7 @@ protos :
 	mv proto/*.js client
 
 build-client :
-	cd client; npx webpack client.js
+	cd client; npx webpack snake.js
 
 start-client : build-client
 	cd client; python2 -m SimpleHTTPServer 8081

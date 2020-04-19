@@ -2,7 +2,6 @@ package gameroom
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"strings"
 	"sync"
@@ -13,10 +12,10 @@ import (
 	"github.com/pcecconi/snake-multi/server/commons"
 )
 
-const pointsPerBait = 10
+const pointsPerBait int32 = 10
 
 // moves freq:  500ms / gameSpeed
-const gameSpeed = 0.25
+const gameSpeed = 7
 
 // Player represents a user in a game
 type Player struct {
@@ -54,16 +53,18 @@ type Game struct {
 
 func (gs *Game) newBait() {
 	fmt.Println("Generating new bait")
+	rand.Seed(time.Now().UnixNano())
 	bait := pb.Point{
 		X: int32(rand.Intn(int(gs.boardWidth))),
 		Y: int32(rand.Intn(int(gs.boardHeight))),
 	}
+	fmt.Println("Proposed bait: ", serializePoint(&bait))
 	if crashed(&bait, &gs.Player1.Snake) || crashed(&bait, &gs.Player2.Snake) {
 		gs.newBait()
 	}
-	gs.mux.Lock()
+	// gs.mux.Lock()
 	gs.Bait = &bait
-	gs.mux.Unlock()
+	// gs.mux.Unlock()
 }
 
 func (gs *Game) getNewSnakeCell(s *Snake) *pb.Point {
@@ -109,7 +110,7 @@ func serializePoint(p *pb.Point) string {
 }
 
 func (gs *Game) move(p *Player) {
-	fmt.Println("Moving player", p.User.ID, p.Snake.movingDirection)
+	// fmt.Println("Moving player", p.User.ID, p.Snake.movingDirection)
 	// fmt.Println("Snake length", len(p.Snake.Cells))
 	newSnakeCell := gs.getNewSnakeCell(&p.Snake)
 
@@ -126,10 +127,12 @@ func (gs *Game) move(p *Player) {
 	}
 
 	// If snake eats bait, create new bait, else continue the game
+	// fmt.Printf("Head: %s, Bait: %s", serializePoint(newSnakeCell), serializePoint(gs.Bait))
 	if newSnakeCell.X == gs.Bait.X && newSnakeCell.Y == gs.Bait.Y {
-		fmt.Printf("Player %s ate bait!", p.User.ID.String())
+		fmt.Printf("Player %s ate bait!\n", p.User.ID.String())
 		gs.newBait()
 		p.Points += pointsPerBait
+		fmt.Printf("New Bait: %s, Points: %d", serializePoint(gs.Bait), p.Points)
 	} else {
 		// Remove last snake cell
 		p.Snake.Cells = p.Snake.Cells[:len(p.Snake.Cells)-1]
@@ -145,7 +148,7 @@ func (gs *Game) play(playerID string) error {
 	if err != nil {
 		return err
 	}
-	log.Println("Starting play for player %s (%s)", player.User.ID.String(), player.User.Name)
+	// log.Printf("Starting play for player %s (%s)", player.User.ID.String(), player.User.Name)
 	for {
 		gs.move(player)
 		if gs.Ended {
@@ -158,9 +161,17 @@ func (gs *Game) play(playerID string) error {
 func (gs *Game) getGameUpdate(player *Player) pb.GameUpdate {
 	gs.mux.Lock()
 	defer gs.mux.Unlock()
+	var points1, points2 int32
+	if player == &gs.Player1 {
+		points1 = gs.Player1.Points
+		points2 = gs.Player2.Points
+	} else {
+		points1 = gs.Player2.Points
+		points2 = gs.Player1.Points
+	}
 	return pb.GameUpdate{
-		Player1Points: gs.Player1.Points,
-		Player2Points: gs.Player2.Points,
+		Player1Points: points1,
+		Player2Points: points2,
 		Bait:          gs.Bait,
 		Snake2:        player.Snake.Cells,
 		GameEnded:     gs.Ended,

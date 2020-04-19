@@ -25,8 +25,8 @@ func NewService() Service {
 	return Service{rooms: make(map[string]*Game)}
 }
 
-func makeInitialSnake(head pb.Point) Snake {
-	var res Snake
+func makeInitialSnake(head *pb.Point) *Snake {
+	res := &Snake{}
 	res.movingDirection = pb.Direction_UP
 	for i := head.Y; i < head.Y+initialSnakeLength; i++ {
 		res.Cells = append(res.Cells, &pb.Point{X: head.X, Y: i})
@@ -34,8 +34,9 @@ func makeInitialSnake(head pb.Point) Snake {
 	return res
 }
 
-func getStartingSnakes(width, height int32) (Snake, Snake) {
-	var head1, head2 pb.Point
+func getStartingSnakes(width, height int32) (*Snake, *Snake) {
+	head1 := &pb.Point{}
+	head2 := &pb.Point{}
 	head1.X = int32(width / 3)
 	head1.Y = int32(height/2) - int32(initialSnakeLength/2)
 	head2.X = int32(width/3) * 2
@@ -52,8 +53,8 @@ func newGameRoom(boardWidth, boardHeight int32, user1 *commons.User, user2 *comm
 		RoomID:      roomID,
 		boardWidth:  boardWidth,
 		boardHeight: boardHeight,
-		Player1:     Player{user1, 0, snake1, make(chan pb.GameUpdate)},
-		Player2:     Player{user2, 0, snake2, make(chan pb.GameUpdate)},
+		Player1:     Player{user1, 0, *snake1, make(chan pb.GameUpdate)},
+		Player2:     Player{user2, 0, *snake2, make(chan pb.GameUpdate)},
 		Bait:        nil,
 		Ended:       false,
 	}
@@ -137,6 +138,7 @@ func (s *Service) SendMove(roomID, playerID string, dir pb.Direction, snake []*p
 	defer s.mux.Unlock()
 	player.Snake.movingDirection = dir
 	player.Snake.Cells = snake
+	log.Printf("Player: %s move. Dir: %v, Snake: %s", playerID, dir, player.Snake.String())
 	s.actionCounter++
 	return pb.ActionAck{ActionId: s.actionCounter}
 }

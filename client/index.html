@@ -1,11 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>gRPC-Web Example</title>
-<script src="./dist/main.js"></script>
+  <meta charset="UTF-8">
+  <title>Snake Game!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;700&display=swap" rel="stylesheet">
+  <link href="loader.css" type="text/css" rel="stylesheet">
+  <link href="snake.css" type="text/css" rel="stylesheet">
 </head>
 <body>
-  <p>Open up the developer console and see the logs for the output.</p>
+  <div id="root">
+    <div id="overlay" class="overlay hidden"></div>
+    <div class="toolbar">
+        <h1 class="brand">Multiplayer Snake</h1>
+        <div class="scores">
+          <div class="player-score">
+            <div class="player-ref player1"></div>
+            <div class="label player1-name">Player 1:</div>
+            <span id="score1" class="score">0</span>
+          </div>
+          <div class="player-score">
+            <div class="player-ref player2"></div>
+            <div class="label player2-name">Player 2:</div>
+            <span id="score2" class="score">0</span>
+          </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+      <div id="game-settings" class="game-setting">
+        <h3>Welcome to Multiplayer Snake!</h3>
+        <div class="setting-group">
+            <label for="name">Enter your name or alias to play:</label>
+            <input type="text" id="name" class="setting" value="" />
+            <br />
+            <button id="play">Play!</button>
+        </div>
+      </div>
+      <div class="loader hidden"><div class="lds-ring"><div></div><div></div><div></div><div></div></div>Waiting for another player to connect...</div>
+      <div class="game-area hidden"></div>
+      <div id="game-over" class="game-over centered hidden">
+        <h3>Game Over!</h3>
+        <div class="scores">
+          <div class="player-score">
+            <div class="player-ref player1"></div>
+            <div class="label player1-name">Player 1:</div>
+            <span id="score1" class="score">0</span>
+          </div>
+          <div class="player-score">
+            <div class="player-ref player2"></div>
+            <div class="label player2-name">Player 2:</div>
+            <span id="score2" class="score">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+<script src="./dist/main.js"></script>
 </body>
 </html>

@@ -18,8 +18,8 @@ import (
 
 var (
 	port        = flag.Int("port", 9090, "The server port")
-	boardWidth  = flag.Int("width", 64, "The board width")
-	boardHeight = flag.Int("height", 64, "The board height")
+	boardWidth  = flag.Int("width", 80, "The board width")
+	boardHeight = flag.Int("height", 80, "The board height")
 )
 
 type snakeServer struct {
@@ -57,22 +57,27 @@ func (s *snakeServer) GetGameRoom(ctx context.Context, req *pb.PlayRequest) (*pb
 	res := s.matcher.MatchUser(&user)
 	match := <-res
 	s.assignGameRoom(match)
+	gr := s.gameRooms[user.ID.String()]
 	// User always is Player1 so we have to map the other to Player2
 	var player2Name string
+	var snake1, snake2 []*pb.Point
 	if user.ID == match.User1.ID {
 		player2Name = match.User2.Name
+		snake1 = gr.Player1.Snake.Cells
+		snake2 = gr.Player2.Snake.Cells
 	} else {
 		player2Name = match.User1.Name
+		snake1 = gr.Player2.Snake.Cells
+		snake2 = gr.Player1.Snake.Cells
 	}
-	gr := s.gameRooms[user.ID.String()]
 	return &pb.GameSetup{
 		RoomId:      gr.RoomID.String(),
 		BoardWidth:  s.defaultBoardWidth,
 		BoardHeight: s.defaultBoardHeight,
 		PlayerId:    user.ID.String(),
 		Player2Name: player2Name,
-		Snake1:      gr.Player1.Snake.Cells,
-		Snake2:      gr.Player2.Snake.Cells,
+		Snake1:      snake1,
+		Snake2:      snake2,
 		Bait:        gr.Bait,
 	}, nil
 }
