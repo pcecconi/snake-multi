@@ -1,0 +1,25 @@
+version: "3"
+services:
+    snakeserver:
+        build: 
+            context: .
+            dockerfile: server.Dockerfile
+        image: snake/server
+        ports:
+            - "9090:9090"
+    proxy:
+        build: 
+            context: .
+            dockerfile: envoy.Dockerfile
+        image: snake/envoy
+        links:
+            - snakeserver
+        ports:
+            - "8080:8080"
+    web:
+        build:
+            context: .
+            dockerfile: client.Dockerfile
+        image: snake/client
+        ports:
+            - "8081:80"
