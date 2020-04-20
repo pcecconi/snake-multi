@@ -20,18 +20,19 @@ const gameSpeed = 7
 // Player represents a user in a game
 type Player struct {
 	User    *commons.User
-	Points  int32
-	Snake   Snake
+	Score   int32
+	Snake   pb.Snake
 	Updates chan pb.GameUpdate
 }
 
 // Snake represents a snake on the board
-type Snake struct {
-	Cells           []*pb.Point
-	movingDirection pb.Direction
-}
+// type Snake struct {
+// 	Cells           []*pb.Point
+// 	movingDirection pb.Direction
+// }
 
-func (s *Snake) String() string {
+// Snake2String Returns a string representation of a snake
+func Snake2String(s *pb.Snake) string {
 	r := []string{}
 	for _, cell := range s.Cells {
 		r = append(r, serializePoint(cell))
@@ -44,11 +45,22 @@ type Game struct {
 	RoomID      uuid.UUID
 	boardWidth  int32
 	boardHeight int32
-	Player1     Player
-	Player2     Player
-	Bait        *pb.Point
-	Ended       bool
-	mux         sync.Mutex
+	Players     []*Player
+	// Player1     Player
+	// Player2     Player
+	Bait  *pb.Point
+	Ended bool
+	mux   sync.Mutex
+}
+
+// GetPlayerByStringID Finds a player by the string version of its uuid
+func (gs *Game) GetPlayerByStringID(id string) *Player {
+	for _, p := range gs.Players {
+		if p.User.ID.String() == id {
+			return p
+		}
+	}
+	return nil
 }
 
 func (gs *Game) newBait() {
@@ -59,7 +71,14 @@ func (gs *Game) newBait() {
 		Y: int32(rand.Intn(int(gs.boardHeight))),
 	}
 	fmt.Println("Proposed bait: ", serializePoint(&bait))
-	if crashed(&bait, &gs.Player1.Snake) || crashed(&bait, &gs.Player2.Snake) {
+	overSnake := false
+	for _, p := range gs.Players {
+		if crashed(&bait, &p.Snake) {
+			overSnake = true
+			break
+		}
+	}
+	if overSnake {
 		gs.newBait()
 	}
 	// gs.mux.Lock()
@@ -67,11 +86,11 @@ func (gs *Game) newBait() {
 	// gs.mux.Unlock()
 }
 
-func (gs *Game) getNewSnakeCell(s *Snake) *pb.Point {
+func (gs *Game) getNewSnakeCell(s *pb.Snake) *pb.Point {
 	firstSnakeCell := s.Cells[0]
 	newSnakeCell := &pb.Point{X: firstSnakeCell.X, Y: firstSnakeCell.Y}
 
-	switch s.movingDirection {
+	switch s.Dir {
 	case pb.Direction_UP:
 		newSnakeCell.Y = firstSnakeCell.Y - 1
 		if newSnakeCell.Y < 0 {
@@ -96,7 +115,7 @@ func (gs *Game) getNewSnakeCell(s *Snake) *pb.Point {
 	return newSnakeCell
 }
 
-func crashed(newCell *pb.Point, s *Snake) bool {
+func crashed(newCell *pb.Point, s *pb.Snake) bool {
 	for _, cell := range s.Cells {
 		if newCell.X == cell.X && newCell.Y == cell.Y {
 			return true
@@ -117,11 +136,19 @@ func (gs *Game) move(p *Player) {
 	gs.mux.Lock()
 	defer gs.mux.Unlock()
 	// Check if snake crashed
-	if crashed(newSnakeCell, &gs.Player1.Snake) || crashed(newSnakeCell, &gs.Player2.Snake) {
+	snakeCrash := false
+	for _, p := range gs.Players {
+		if crashed(newSnakeCell, &p.Snake) {
+			snakeCrash = true
+			break
+		}
+	}
+	// if crashed(newSnakeCell, &gs.Player1.Snake) || crashed(newSnakeCell, &gs.Player2.Snake) {
+	if snakeCrash {
 		fmt.Println("Snakes crash! Ending game!")
-		fmt.Println("New cell:", serializePoint(newSnakeCell))
-		fmt.Println("Snake1", gs.Player1.Snake.String())
-		fmt.Println("Snake2", gs.Player2.Snake.String())
+		// fmt.Println("New cell:", serializePoint(newSnakeCell))
+		// fmt.Println("Snake1", gs.Player1.Snake.String())
+		// fmt.Println("Snake2", gs.Player2.Snake.String())
 		gs.Ended = true
 		return
 	}
@@ -131,8 +158,8 @@ func (gs *Game) move(p *Player) {
 	if newSnakeCell.X == gs.Bait.X && newSnakeCell.Y == gs.Bait.Y {
 		fmt.Printf("Player %s ate bait!\n", p.User.ID.String())
 		gs.newBait()
-		p.Points += pointsPerBait
-		fmt.Printf("New Bait: %s, Points: %d", serializePoint(gs.Bait), p.Points)
+		p.Score += pointsPerBait
+		fmt.Printf("New Bait: %s, Points: %d", serializePoint(gs.Bait), p.Score)
 	} else {
 		// Remove last snake cell
 		p.Snake.Cells = p.Snake.Cells[:len(p.Snake.Cells)-1]
@@ -144,9 +171,9 @@ func (gs *Game) move(p *Player) {
 }
 
 func (gs *Game) play(playerID string) error {
-	player, _, err := gs.getPlayers(playerID)
-	if err != nil {
-		return err
+	player := gs.GetPlayerByStringID(playerID)
+	if player == nil {
+		return fmt.Errorf("Invalid player id %s", playerID)
 	}
 	// log.Printf("Starting play for player %s (%s)", player.User.ID.String(), player.User.Name)
 	for {
@@ -161,43 +188,36 @@ func (gs *Game) play(playerID string) error {
 func (gs *Game) getGameUpdate(player *Player) pb.GameUpdate {
 	gs.mux.Lock()
 	defer gs.mux.Unlock()
+	scores := []int32{}
+	snakes := []*pb.Snake{}
+	for _, p := range gs.Players {
+		scores = append(scores, p.Score)
+		if p != player {
+			snakes = append(snakes, &p.Snake)
+		} else {
+			snakes = append(snakes, &pb.Snake{})
+		}
+	}
 	return pb.GameUpdate{
-		Player1Points: gs.Player1.Points,
-		Player2Points: gs.Player2.Points,
-		Bait:          gs.Bait,
-		Snake2:        player.Snake.Cells,
-		GameEnded:     gs.Ended,
+		Scores:    scores,
+		Bait:      gs.Bait,
+		Snakes:    snakes,
+		GameEnded: gs.Ended,
 	}
 }
 
-func (gs *Game) sendUpdates(player *Player, updates chan<- pb.GameUpdate) error {
+func (gs *Game) sendUpdates(player *Player) error {
 	for {
 		gameUpdate := gs.getGameUpdate(player)
 		gs.mux.Lock()
-		updates <- gameUpdate
+		player.Updates <- gameUpdate
 		gs.mux.Unlock()
 		if gs.Ended {
-			close(updates)
+			close(player.Updates)
 			return nil
 		}
 		time.Sleep((500 / gameSpeed) * time.Millisecond)
 	}
-}
-
-func (gs *Game) getPlayers(playerID string) (*Player, *Player, error) {
-	var otherPlayer, player *Player
-	if playerID == gs.Player1.User.ID.String() {
-		player = &gs.Player1
-		otherPlayer = &gs.Player2
-	}
-	if playerID == gs.Player2.User.ID.String() {
-		player = &gs.Player2
-		otherPlayer = &gs.Player1
-	}
-	if player == nil {
-		return nil, nil, fmt.Errorf("Invalid player %s", playerID)
-	}
-	return player, otherPlayer, nil
 }
 
 func (gs *Game) abort() {

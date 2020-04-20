@@ -1,6 +1,6 @@
 'use strict';
-const {PlayRequest, ActionRequest, MoveRequest, Direction, Point} = require('./snake_pb.js');
-const {SnakeClient} = require('./snake_grpc_web_pb.js');
+const {PlayRequest, ActionRequest, MoveRequest, Direction, Point, Snake} = require('./snake_pb.js');
+const {SnakeServiceClient} = require('./snake_grpc_web_pb.js');
 
 function NewSnakeStatus(className) {
     return {
@@ -11,14 +11,17 @@ function NewSnakeStatus(className) {
     }
 }
 
-let Snake = function (url) {
+let SnakeGame = function (url) {
     let self = this;
     
     self.snake = [];
-    self.snake1 = NewSnakeStatus("player1");
-    self.snake2 = NewSnakeStatus("player2");
-    self.player1 = {name: "Player 1", score: 0};
-    self.player2 = {name: "Player 2", score: 0};
+    self.playerIdx = 0;
+    self.snakes = [NewSnakeStatus("player1"), NewSnakeStatus("player2")]
+    // self.snake1 = NewSnakeStatus("player1");
+    // self.snake2 = NewSnakeStatus("player2");
+    self.players = [{name: "Player 1", score: 0, className: "player1"}, {name: "Player 2", score: 0, className: "player2"}]
+    // self.player1 = {name: "Player 1", score: 0};
+    // self.player2 = {name: "Player 2", score: 0};
     self.difficulty = 7;
     self.gameArea = document.getElementsByClassName('game-area')[0];
     self.loader = document.getElementsByClassName('loader')[0];
@@ -32,35 +35,36 @@ let Snake = function (url) {
         x: null,
         y: null
     };
-    self.client = new SnakeClient(url, null, null);
+    self.client = new SnakeServiceClient(url, null, null);
     self.playerId = "";
     self.roomId = "";
+    self.ended = false;
 
     document.onkeydown = function (event) {
         if (self.gameStarted) {
             switch (event.key) {
                 case "ArrowUp":
-                    if (self.snake1.direction !== Direction.DOWN) {
-                        self.snake1.direction = Direction.UP;
+                    if (self.snakes[self.playerIdx].direction !== Direction.DOWN) {
+                        self.snakes[self.playerIdx].direction = Direction.UP;
                     }
                     break;
                 case "ArrowDown":
-                    if (self.snake1.direction !== Direction.UP) {
-                        self.snake1.direction = Direction.DOWN;
+                    if (self.snakes[self.playerIdx].direction !== Direction.UP) {
+                        self.snakes[self.playerIdx].direction = Direction.DOWN;
                     }
                     break;
                 case "ArrowLeft":
-                    if (self.snake1.direction !== Direction.RIGHT) {
-                        self.snake1.direction = Direction.LEFT;
+                    if (self.snakes[self.playerIdx].direction !== Direction.RIGHT) {
+                        self.snakes[self.playerIdx].direction = Direction.LEFT;
                     }
                     break;
                 case "ArrowRight":
-                    if (self.snake1.direction !== Direction.LEFT) {
-                        self.snake1.direction = Direction.RIGHT;
+                    if (self.snakes[self.playerIdx].direction !== Direction.LEFT) {
+                        self.snakes[self.playerIdx].direction = Direction.RIGHT;
                     }
                     break;
             }
-            self.sendMove(self.snake1)
+            self.sendMove(self.snakes[self.playerIdx])
         }
     };
 };
@@ -68,7 +72,7 @@ let Snake = function (url) {
 /**
  * Move the snake
  */
-Snake.prototype.move = function (snake) {
+SnakeGame.prototype.move = function (snake) {
     let self = this;
     let firstSnakeCell = snake.cells[0];
     let lastSnakeCell = snake.cells[snake.cells.length - 1];
@@ -124,14 +128,14 @@ Snake.prototype.move = function (snake) {
     snake.cells.unshift(newSnakeCell);
 };
 
-Snake.prototype.getCellByPoint = function(point) {
+SnakeGame.prototype.getCellByPoint = function(point) {
     return document.querySelector(`[data-x='${point.x}'][data-y='${point.y}']`)
 }
 
 /**
  * Create new bait
  */
-Snake.prototype.renderBait = function () {
+SnakeGame.prototype.renderBait = function () {
     let self = this;
     // let prevBait = document.getElementsByClassName("bait");
     // if (prevBait.length > 0) {
@@ -140,7 +144,7 @@ Snake.prototype.renderBait = function () {
     self.getCellByPoint(self.bait).classList.add("bait");
 };
 
-Snake.prototype.sendMove = function(snake) {
+SnakeGame.prototype.sendMove = function(snake) {
     let self = this;
     clearTimeout(snake.updateTimeout);
     let request = new MoveRequest();
@@ -152,24 +156,34 @@ Snake.prototype.sendMove = function(snake) {
     });
     request.setRoomid(this.roomId);
     request.setPlayerid(this.playerId);
-    request.setDir(snake.direction)
-    request.setSnakeList(cells)
+    let s = new Snake();
+    s.setCellsList(cells);
+    s.setDir(snake.direction);
+    // request.setDir(snake.direction)
+    // request.setSnakeList(cells)
+    request.setSnake(s)
     // console.log("Calling SendMove", snake.direction, cells);
     self.client.sendMove(request, {}, (err, response) => {
-      console.log({
-        actionId: response.getActionid(), 
-      });
+        if (err) {
+            console.error(err)
+        } else {
+            console.log("SendMove", {
+                actionId: response.getActionid(), 
+            });
+        }
     });
-    snake.updateTimeout = setTimeout(function () {
-        // console.log("Sending update for ", snake.className);
-        self.sendMove(snake);
-    }, 500);
+    if (!self.ended) {
+        snake.updateTimeout = setTimeout(function () {
+            // console.log("Sending update for ", snake.className);
+            self.sendMove(snake);
+        }, 500);
+    }
 }
 
 /**
  * Creates game area 
  */
-Snake.prototype.createGameArea = function () {
+SnakeGame.prototype.createGameArea = function () {
     let self = this;
     let rowElement, cellElement;
 
@@ -198,11 +212,15 @@ Snake.prototype.createGameArea = function () {
     self.hideLoader();
     self.gameArea.classList.remove("hidden");
     self.renderBait();    
-    self.renderSnake(self.snake1);
-    self.renderSnake(self.snake2);
+    for (let i=0,l=self.snakes.length;i<l;i++) {
+        console.log("CreateGameArea, rendering snake", i, self.snakes[i])
+        self.renderSnake(self.snakes[i]);
+    }
+    // self.renderSnake(self.snake1);
+    // self.renderSnake(self.snake2);
 };
 
-Snake.prototype.isSnakeCell = function(cell, snake) {
+SnakeGame.prototype.isSnakeCell = function(cell, snake) {
     cellX = cell.getAttribute('data-x');
     cellY = cell.getAttribute('data-y');
 
@@ -217,7 +235,7 @@ Snake.prototype.isSnakeCell = function(cell, snake) {
 /**
  * Renders game area.
  */
-Snake.prototype.renderSnake = function(snake, newCells) {
+SnakeGame.prototype.renderSnake = function(snake, newCells) {
     if (newCells) {
         for (let i=0,l=snake.cells.length;i<l;i++) {
             this.getCellByPoint(snake.cells[i])
@@ -234,7 +252,7 @@ Snake.prototype.renderSnake = function(snake, newCells) {
     }
 };
 
-Snake.prototype.getGameRoom = async function(name) {
+SnakeGame.prototype.getGameRoom = async function(name) {
     let self = this;
     let request = new PlayRequest();
     request.setPlayername(name);
@@ -249,15 +267,15 @@ Snake.prototype.getGameRoom = async function(name) {
     });
 }
 
-Snake.prototype.showLoader = function() {
+SnakeGame.prototype.showLoader = function() {
     this.loader.classList.remove("hidden");
 }
 
-Snake.prototype.hideLoader = function() {
+SnakeGame.prototype.hideLoader = function() {
     this.loader.classList.add("hidden");
 }
 
-Snake.prototype.getGameUpdate = function() {
+SnakeGame.prototype.getGameUpdate = function() {
     let self = this;
     let streamRequest = new ActionRequest();
     streamRequest.setRoomid(self.roomId);
@@ -265,50 +283,56 @@ Snake.prototype.getGameUpdate = function() {
     
     let stream = self.client.getGameUpdates(streamRequest, {});
     stream.on('data', (response) => {
-        self.player1.score = response.getPlayer1points();
-        self.player2.score = response.getPlayer2points();
-        if (response.getBait().toObject() !== self.bait) {
+        response.getScoresList().map((score, idx) => {
+            self.players[idx].score = score;
+            self.setContentByClass(`score-player${idx+1}`, score)
+        })
+        let ended = response.getGameended();
+        if (!ended && response.getBait().toObject() !== self.bait) {
             self.bait = response.getBait().toObject();
             self.renderBait();    
         }
-        // console.log({
-        //     player1Points:  self.player1.score,
-        //     player2Points: self.player2.score,
-        //     bait: self.bait,
-        //     snake2: self.snake2.cells,
-        //     gameEnded: response.getGameended()
-        //     });
-        self.renderSnake(self.snake2, response.getSnake2List()
-            .map(p => p.toObject()));
-        self.setContentByClass("score-player1", self.player1.score)
-        self.setContentByClass("score-player2", self.player2.score)
-        if (response.getGameended()) {
+        response.getSnakesList().map((snake, idx) => {
+            if (idx!==self.playerIdx) {
+                self.renderSnake(self.snakes[idx], snake.getCellsList().map(p => p.toObject()))
+            }
+        })
+        if (ended) {
+            console.log("Game ended!")
             self.endGame();
         }
+    }).on('end', function(end) {
+        console.log("Updates finished!", end)
     });    
 }
 
-Snake.prototype.setupGame = function(setup) {
+SnakeGame.prototype.setupGame = function(setup) {
     let self = this;
     self.roomId = setup.getRoomid();
     self.playerId = setup.getPlayerid();
+    self.playerIdx = setup.getPlayeridx();
     self.boardWidth = setup.getBoardwidth();
     self.boardHeight = setup.getBoardheight();
-    self.player2.name = setup.getPlayer2name();
-    self.snake1.cells = setup.getSnake1List().map(p => p.toObject());
-    self.snake2.cells = setup.getSnake2List().map(p => p.toObject());
+    console.log("PlayerId", self.playerId);
+    setup.getPlayernamesList().map((name, idx) => {
+        self.players[idx].name = name;
+        self.setContentByClass(`player${idx+1}-name`, name);
+    });
+    setup.getSnakesList().map((snake, idx) => {
+        self.snakes[idx].cells = snake.getCellsList().map(p => p.toObject());
+        self.snakes[idx].direction = snake.getDir();
+    });
     self.bait = setup.getBait().toObject();
-    self.setContentByClass("player2-name", self.player2.name);
 }
 
-Snake.prototype.setContentByClass = function(className, content) {
+SnakeGame.prototype.setContentByClass = function(className, content) {
     let elems = document.getElementsByClassName(className)
     for (let i=0;i<elems.length;i++) {
         elems[i].innerHTML = content
     }
 }
 
-Snake.prototype.sendStartGame = async function() {
+SnakeGame.prototype.sendStartGame = async function() {
     let self = this;
     var request = new ActionRequest();
     request.setRoomid(this.roomId);
@@ -319,7 +343,7 @@ Snake.prototype.sendStartGame = async function() {
             if (err !== null) {
                 reject(err);
             } else {
-                console.log({
+                console.log("Start Game", {
                     actionId: response.getActionid()
                 });
                 self.gameStarted = true;
@@ -332,17 +356,18 @@ Snake.prototype.sendStartGame = async function() {
 /**
  * Start the game
  */
-Snake.prototype.startGame = function() {
+SnakeGame.prototype.startGame = function() {
     let self = this;
+    self.ended = false;
     self.createGameArea();
     self.sendStartGame()
         .then((res) => {
             self.getGameUpdate()
             self.interval1 = setInterval(function () {
-                self.move(self.snake1);
+                self.move(self.snakes[self.playerIdx]);
             }, 500 / self.difficulty);   
-            self.snake1.updateTimeout = setTimeout(function () {
-                self.sendMove(self.snake1);
+            self.snakes[self.playerIdx].updateTimeout = setTimeout(function () {
+                self.sendMove(self.snakes[self.playerIdx]);
             }, 500);        
 
             // self.interval2 = setInterval(function () {
@@ -352,7 +377,7 @@ Snake.prototype.startGame = function() {
         .catch(err => console.error(err));
 }
 
-Snake.prototype.showMatch = function() {
+SnakeGame.prototype.showMatch = function() {
     let self = this;
     let matchDialog = document.getElementById('match-dialog');
     matchDialog.classList.remove("hidden")
@@ -373,17 +398,14 @@ Snake.prototype.showMatch = function() {
 /**
  * Connect to the server
  */
-Snake.prototype.connect = function(name) {
+SnakeGame.prototype.connect = function(name) {
     let self = this;
-    self.player1.name = name;
-    self.setContentByClass("player1-name", name);
     self.showLoader();
     self.getGameRoom(name)
     .then((gameRoom) => {
         self.setupGame(gameRoom)
         self.hideLoader()
         self.showMatch()
-        // self.startGame(gameRoom)
     })
     .catch(err => console.error(err));
 }
@@ -391,20 +413,19 @@ Snake.prototype.connect = function(name) {
 /**
  * Stop the game
  */
-Snake.prototype.stopGame = function () {
+SnakeGame.prototype.stopGame = function () {
     let self = this;
     self.gameStarted = false;
     clearInterval(self.interval1);
-    clearInterval(self.interval2);
-    clearTimeout(self.snake1.updateTimeout);
-    clearTimeout(self.snake2.updateTimeout);
+    // clearInterval(self.interval2);
+    self.snakes.map(s=>clearTimeout(s))
 };
 
 /**
  * Ends the game
  */
-Snake.prototype.endGame = function () {
-    // alert('Game Over!! Yout score is ' + this.score);
+SnakeGame.prototype.endGame = function () {
+    self.ended = true;
     document.getElementById("overlay").classList.remove("hidden");
     document.getElementById("game-over").classList.remove("hidden");
     this.stopGame();
@@ -414,7 +435,7 @@ Snake.prototype.endGame = function () {
 function main() {
     'use strict';
 
-    let game = new Snake('http://' + window.location.hostname + ':8080');
+    let game = new SnakeGame('http://' + window.location.hostname + ':8080');
     let gameSetting = document.getElementById("game-settings");
     let connectButton = document.getElementById("connect");
 

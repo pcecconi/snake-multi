@@ -25,16 +25,16 @@ func NewService() Service {
 	return Service{rooms: make(map[string]*Game)}
 }
 
-func makeInitialSnake(head *pb.Point) *Snake {
-	res := &Snake{}
-	res.movingDirection = pb.Direction_UP
+func makeInitialSnake(head *pb.Point) *pb.Snake {
+	res := &pb.Snake{}
+	res.Dir = pb.Direction_UP
 	for i := head.Y; i < head.Y+initialSnakeLength; i++ {
 		res.Cells = append(res.Cells, &pb.Point{X: head.X, Y: i})
 	}
 	return res
 }
 
-func getStartingSnakes(width, height int32) (*Snake, *Snake) {
+func getStartingSnakes(width, height int32) (*pb.Snake, *pb.Snake) {
 	head1 := &pb.Point{}
 	head2 := &pb.Point{}
 	head1.X = int32(width / 3)
@@ -49,12 +49,15 @@ func newGameRoom(boardWidth, boardHeight int32, user1 *commons.User, user2 *comm
 	snake1, snake2 := getStartingSnakes(boardWidth, boardHeight)
 	fmt.Println("Initial Snake1", snake1.String())
 	fmt.Println("Initial Snake2", snake2.String())
+	players := []*Player{
+		&Player{user1, 0, *snake1, make(chan pb.GameUpdate)},
+		&Player{user2, 0, *snake2, make(chan pb.GameUpdate)},
+	}
 	gs := &Game{
 		RoomID:      roomID,
 		boardWidth:  boardWidth,
 		boardHeight: boardHeight,
-		Player1:     Player{user1, 0, *snake1, make(chan pb.GameUpdate)},
-		Player2:     Player{user2, 0, *snake2, make(chan pb.GameUpdate)},
+		Players:     players,
 		Bait:        nil,
 		Ended:       false,
 	}
@@ -93,9 +96,9 @@ func (s *Service) AbortGame(roomID, playerID string) (pb.GameUpdate, error) {
 	if !ok {
 		return pb.GameUpdate{}, fmt.Errorf("Invalid game room ID %s", roomID)
 	}
-	player, _, err := game.getPlayers(playerID)
-	if err != nil {
-		return pb.GameUpdate{}, err
+	player := game.GetPlayerByStringID(playerID)
+	if player == nil {
+		return pb.GameUpdate{}, fmt.Errorf("Invalid player %", playerID)
 	}
 	game.abort()
 	return game.getGameUpdate(player), nil
@@ -107,38 +110,32 @@ func (s *Service) GetGameUpdates(roomID, playerID string) (chan pb.GameUpdate, e
 	if !ok {
 		return nil, fmt.Errorf("Invalid roomId: %s", roomID)
 	}
-	player, otherPlayer, err := game.getPlayers(playerID)
-	if err != nil {
-		return nil, err
+	player := game.GetPlayerByStringID(playerID)
+	if player == nil {
+		return nil, fmt.Errorf("Invalid player id %s", playerID)
 	}
 	log.Println("Starting updates for player %s", playerID)
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	go game.sendUpdates(otherPlayer, player.Updates)
+	go game.sendUpdates(player)
 	return player.Updates, nil
 }
 
 // SendMove is used for receiving a player's move
-func (s *Service) SendMove(roomID, playerID string, dir pb.Direction, snake []*pb.Point) pb.ActionAck {
+func (s *Service) SendMove(roomID, playerID string, snake *pb.Snake) pb.ActionAck {
 	gs, ok := s.rooms[roomID]
 	if !ok {
 		return pb.ActionAck{ActionId: -1}
 	}
-	var player *Player
-	if playerID == gs.Player1.User.ID.String() {
-		player = &gs.Player1
-	}
-	if playerID == gs.Player2.User.ID.String() {
-		player = &gs.Player2
-	}
+	player := gs.GetPlayerByStringID(playerID)
 	if player == nil {
 		return pb.ActionAck{ActionId: -1}
 	}
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	player.Snake.movingDirection = dir
-	player.Snake.Cells = snake
-	log.Printf("Player: %s move. Dir: %v, Snake: %s", playerID, dir, player.Snake.String())
+	player.Snake.Dir = snake.Dir
+	player.Snake.Cells = snake.Cells
+	// log.Printf("Player: %s move. Dir: %v, Snake: %s", playerID, Snake2String(&player.Snake))
 	s.actionCounter++
 	return pb.ActionAck{ActionId: s.actionCounter}
 }

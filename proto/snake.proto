@@ -22,7 +22,7 @@ option go_package = ".;snake";
 package snake;
 
 // Interface exported by the server.
-service Snake {
+service SnakeService {
   // A Simple RPC
   //
   // Requests access to a game room to play
@@ -66,6 +66,11 @@ enum Direction {
     DOWN = 3;
 }
 
+message Snake {
+    repeated Point cells = 1;
+    Direction dir = 2;
+}
+
 message Move {
     int32 id = 1;
     Direction dir = 2;
@@ -75,8 +80,7 @@ message Move {
 message MoveRequest {
     string roomId = 1;
     string playerId = 2;
-    Direction dir = 3;
-    repeated Point snake = 4;
+    Snake snake = 3;
 }
 
 message PlayRequest {
@@ -90,21 +94,20 @@ message ActionRequest {
 
 message GameSetup {
     string roomId = 1;
-    int32 boardWidth = 2;
-    int32 boardHeight = 3;
-    string playerId = 4;
-    string player2Name = 5;
-    repeated Point snake1 = 6;
-    repeated Point snake2 = 7;
+    string playerId = 2;
+    int32 playerIdx = 3;
+    int32 boardWidth = 4;
+    int32 boardHeight = 5;
+    repeated string playerNames = 6;
+    repeated Snake snakes = 7;
     Point bait = 8;
 }
 
 message GameUpdate {
-    int32 player1Points = 1;
-    int32 player2Points = 2;
-    Point bait = 3;
-    repeated Point snake2 = 4;
-    bool gameEnded = 5;
+    repeated int32 scores = 1;
+    Point bait = 2;
+    repeated Snake snakes = 3;
+    bool gameEnded = 4;
 }
 
 message ActionAck {

@@ -23,13 +23,13 @@ var (
 )
 
 type snakeServer struct {
-	pb.UnimplementedSnakeServer
+	pb.UnimplementedSnakeServiceServer
 	matcher            matcher.Service
 	gameRoom           gameroom.Service
 	defaultBoardWidth  int32
 	defaultBoardHeight int32
 	gameRooms          map[string]*gameroom.Game
-	mu                 sync.Mutex // protects routeNotes
+	mu                 sync.Mutex
 }
 
 func (s *snakeServer) assignGameRoom(match *matcher.Match) error {
@@ -59,25 +59,22 @@ func (s *snakeServer) GetGameRoom(ctx context.Context, req *pb.PlayRequest) (*pb
 	s.assignGameRoom(match)
 	gr := s.gameRooms[user.ID.String()]
 	// User always is Player1 so we have to map the other to Player2
-	var player2Name string
-	var snake1, snake2 []*pb.Point
-	if user.ID == match.User1.ID {
-		player2Name = match.User2.Name
-		snake1 = gr.Player1.Snake.Cells
-		snake2 = gr.Player2.Snake.Cells
-	} else {
-		player2Name = match.User1.Name
-		snake1 = gr.Player2.Snake.Cells
-		snake2 = gr.Player1.Snake.Cells
+	snakes := []*pb.Snake{}
+	playerIdx := 0
+	for idx, p := range gr.Players {
+		if p.User.ID.String() == user.ID.String() {
+			playerIdx = idx
+		}
+		snakes = append(snakes, &p.Snake)
 	}
 	return &pb.GameSetup{
 		RoomId:      gr.RoomID.String(),
+		PlayerId:    user.ID.String(),
+		PlayerIdx:   int32(playerIdx),
 		BoardWidth:  s.defaultBoardWidth,
 		BoardHeight: s.defaultBoardHeight,
-		PlayerId:    user.ID.String(),
-		Player2Name: player2Name,
-		Snake1:      snake1,
-		Snake2:      snake2,
+		PlayerNames: []string{match.User1.Name, match.User2.Name},
+		Snakes:      snakes,
 		Bait:        gr.Bait,
 	}, nil
 }
@@ -98,7 +95,7 @@ func (s *snakeServer) AbortGame(ctx context.Context, req *pb.ActionRequest) (*pb
 }
 
 // GetGameUpdate returns updates on the other players movements, bait position and points.
-func (s *snakeServer) GetGameUpdates(req *pb.ActionRequest, stream pb.Snake_GetGameUpdatesServer) error {
+func (s *snakeServer) GetGameUpdates(req *pb.ActionRequest, stream pb.SnakeService_GetGameUpdatesServer) error {
 	updates, err := s.gameRoom.GetGameUpdates(req.RoomId, req.PlayerId)
 	for upd := range updates {
 		if err := stream.Send(&upd); err != nil {
@@ -110,7 +107,7 @@ func (s *snakeServer) GetGameUpdates(req *pb.ActionRequest, stream pb.Snake_GetG
 
 // SendMove receives a move, updates internals and returns ack.
 func (s *snakeServer) SendMove(ctx context.Context, req *pb.MoveRequest) (*pb.ActionAck, error) {
-	ack := s.gameRoom.SendMove(req.RoomId, req.PlayerId, req.Dir, req.Snake)
+	ack := s.gameRoom.SendMove(req.RoomId, req.PlayerId, req.Snake)
 	return &ack, nil
 }
 
@@ -137,6 +134,6 @@ func main() {
 	}
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterSnakeServer(grpcServer, newServer(*boardWidth, *boardHeight))
+	pb.RegisterSnakeServiceServer(grpcServer, newServer(*boardWidth, *boardHeight))
 	grpcServer.Serve(lis)
 }
