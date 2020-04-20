@@ -166,11 +166,12 @@ SnakeGame.prototype.sendMove = function(snake) {
     self.client.sendMove(request, {}, (err, response) => {
         if (err) {
             console.error(err)
-        } else {
-            console.log("SendMove", {
-                actionId: response.getActionid(), 
-            });
         }
+        //  else {
+        //     console.log("SendMove", {
+        //         actionId: response.getActionid(), 
+        //     });
+        // }
     });
     if (!self.ended) {
         snake.updateTimeout = setTimeout(function () {
@@ -458,8 +459,8 @@ function main() {
         }
     });
 
-    gameSetting.classList.add("hidden")
-    game.connect("Pablo "+Math.floor(Math.random()*100))
+    // gameSetting.classList.add("hidden")
+    // game.connect("Pablo "+Math.floor(Math.random()*100))
 }
 
 main();

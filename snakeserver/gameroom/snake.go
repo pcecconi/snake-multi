@@ -25,12 +25,6 @@ type Player struct {
 	Updates chan pb.GameUpdate
 }
 
-// Snake represents a snake on the board
-// type Snake struct {
-// 	Cells           []*pb.Point
-// 	movingDirection pb.Direction
-// }
-
 // Snake2String Returns a string representation of a snake
 func Snake2String(s *pb.Snake) string {
 	r := []string{}
@@ -46,11 +40,9 @@ type Game struct {
 	boardWidth  int32
 	boardHeight int32
 	Players     []*Player
-	// Player1     Player
-	// Player2     Player
-	Bait  *pb.Point
-	Ended bool
-	mux   sync.Mutex
+	Bait        *pb.Point
+	Ended       bool
+	mux         sync.Mutex
 }
 
 // GetPlayerByStringID Finds a player by the string version of its uuid
@@ -81,9 +73,7 @@ func (gs *Game) newBait() {
 	if overSnake {
 		gs.newBait()
 	}
-	// gs.mux.Lock()
 	gs.Bait = &bait
-	// gs.mux.Unlock()
 }
 
 func (gs *Game) getNewSnakeCell(s *pb.Snake) *pb.Point {
@@ -143,12 +133,8 @@ func (gs *Game) move(p *Player) {
 			break
 		}
 	}
-	// if crashed(newSnakeCell, &gs.Player1.Snake) || crashed(newSnakeCell, &gs.Player2.Snake) {
 	if snakeCrash {
 		fmt.Println("Snakes crash! Ending game!")
-		// fmt.Println("New cell:", serializePoint(newSnakeCell))
-		// fmt.Println("Snake1", gs.Player1.Snake.String())
-		// fmt.Println("Snake2", gs.Player2.Snake.String())
 		gs.Ended = true
 		return
 	}
@@ -167,7 +153,6 @@ func (gs *Game) move(p *Player) {
 
 	// Add new cell to head of the snake
 	p.Snake.Cells = append([]*pb.Point{newSnakeCell}, p.Snake.Cells...)
-	// fmt.Println("New Head pos", p.Snake.Cells[0])
 }
 
 func (gs *Game) play(playerID string) error {

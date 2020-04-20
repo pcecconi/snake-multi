@@ -135,7 +135,6 @@ func (s *Service) SendMove(roomID, playerID string, snake *pb.Snake) pb.ActionAc
 	defer s.mux.Unlock()
 	player.Snake.Dir = snake.Dir
 	player.Snake.Cells = snake.Cells
-	// log.Printf("Player: %s move. Dir: %v, Snake: %s", playerID, Snake2String(&player.Snake))
 	s.actionCounter++
 	return pb.ActionAck{ActionId: s.actionCounter}
 }
