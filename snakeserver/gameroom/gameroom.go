@@ -47,8 +47,6 @@ func getStartingSnakes(width, height int32) (*pb.Snake, *pb.Snake) {
 func newGameRoom(boardWidth, boardHeight int32, user1 *commons.User, user2 *commons.User) *Game {
 	roomID := uuid.New()
 	snake1, snake2 := getStartingSnakes(boardWidth, boardHeight)
-	fmt.Println("Initial Snake1", snake1.String())
-	fmt.Println("Initial Snake2", snake2.String())
 	players := []*Player{
 		&Player{user1, 0, *snake1, make(chan pb.GameUpdate)},
 		&Player{user2, 0, *snake2, make(chan pb.GameUpdate)},

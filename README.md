@@ -9,6 +9,22 @@ The main architecture is depicted below:
 
 The whole document can be found here: [Distributed 2-Players Snake Design](https://docs.google.com/document/d/1FfXP6QN2Liey96KQuUbFl7fTTmicdZVIdOH-jswGKSw/edit?pli=1#heading=h.j2korreddfmj)
 
+## Implementation
+The code is separated in 3 folders:
+
+- `snakeserver`: Golang code for the game server
+- `proto`: Protocol buffers definitions for services communication
+- `client`: Pure Javascript (old-school, no-frameworks) implementation of a Game client.
+
+### Design considerations
+When analysing the implementation it might be convenient to bare in mind the following design decisions:
+
+- The protocol design was made considering that adding more players should require no changes. Also, most of the code, except for the game room initialization doesn't assume the players are only 2.
+
+- Board size is an attribute of the Game Room. This way, it would be easy to support the requirement that board size adapted to players' resolution or any other factor.
+
+- The players matcher's implementation only works with a single game server instance. Otherwise, the current pending's channel would have to be replaced by a central queue.
+
 ## Running the Game
 After cloning the repo just issue a:
 ```
@@ -58,6 +74,8 @@ This implementation was done from scratch in a week while at the same time learn
 - Tests
 - Server validation of moves and cheating detection
 - Services separation
+- Fine tuning on game over conditions like penalizing a player that crashes it's snake onto itself, or detecting which player hits another one, etc.
+- Game pause/abort on the UI
 - A better UI
 
 Also, I'm sure the code could be structured in a much-cleaner way with more time and Golang experience.

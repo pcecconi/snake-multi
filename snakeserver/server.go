@@ -58,7 +58,6 @@ func (s *snakeServer) GetGameRoom(ctx context.Context, req *pb.PlayRequest) (*pb
 	match := <-res
 	s.assignGameRoom(match)
 	gr := s.gameRooms[user.ID.String()]
-	// User always is Player1 so we have to map the other to Player2
 	snakes := []*pb.Snake{}
 	playerIdx := 0
 	for idx, p := range gr.Players {
