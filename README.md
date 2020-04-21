@@ -1,7 +1,13 @@
 # Online Multiplayer Snake
-This is a 2 players online version of the classic Snake game.
-It's written in Golang using gRPC as a communication protocol 
-and it has a web interface for the game client.
+This is a 2 players online web version of the classic Snake game developed as part of a 2-week onboarding process with the objective of familiarizing with technologies in use at the company like Golang and the gRPC communication protocol.
+
+## System Design
+Half of the assignment was to develop a system design that assumed this system would have to scale up to tens of thousands of simultaneous players. 
+The main architecture is depicted below:
+
+![Multplayer Snake Architecture](system-design.png)
+
+The whole document can be found here: [Distributed 2-Players Snake Design](https://docs.google.com/document/d/1FfXP6QN2Liey96KQuUbFl7fTTmicdZVIdOH-jswGKSw/edit?pli=1#heading=h.j2korreddfmj)
 
 ## Running the Game
 After cloning the repo just issue a:
@@ -45,3 +51,14 @@ running in the background during development (it's required for using
 web gRPC)
 - `protos`: Builds the protocol buffers interfaces for Goland and Javascript. You should run this command every time you change the 
 protocols definitions.
+
+## TODO
+This implementation was done from scratch in a week while at the same time learning Golang, gRPC and online game development. As such, many things that were part of the design were left out of scope to satisfy the deadline imposed by the task. Some of those things are:
+
+- Tests
+- Server validation of moves and cheating detection
+- Services separation
+- A better UI
+
+Also, I'm sure the code could be structured in a much-cleaner way with more time and Golang experience.
+Nonetheless, it's quite playable! :)
