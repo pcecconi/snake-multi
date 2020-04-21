@@ -21,7 +21,7 @@ When analysing the implementation it might be convenient to bare in mind the fol
 
 - The protocol design was made considering that adding more players should require no changes. Also, most of the code, except for the game room initialization doesn't assume the players are only 2.
 
-- Board size is an attribute of the Game Room. This way, it would be easy to support the requirement that board size adapted to players' resolution or any other factor.
+- Board size is an attribute of the Game Room. This way, it would be easy to support the requirement that board size adapted to players' resolution or any other factor. Also, default board size is a server initialization parameter.
 
 - The players matcher's implementation only works with a single game server instance. Otherwise, the current pending's channel would have to be replaced by a central queue.
 
@@ -34,7 +34,7 @@ $ docker-compose up
 This will start 3 containers:
 
 - Snake Server on port 9090
-- Envoy Proxy on port 8080
+- Envoy Proxy on port 8080 (Required by the web version of gRPC, see below)
 - Web server on port 8081
 
 Once the containers are up and running you can enter the 
